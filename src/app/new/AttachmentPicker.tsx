@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const MAX_FILES = 4;
 const MAX_SIZE = 1_000_000;
@@ -15,11 +15,15 @@ export default function AttachmentPicker() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
 
   function refreshFromInput(files: FileList | null) {
     setError(null);
     if (!files || files.length === 0) {
-      setPreviews([]);
+      setPreviews((old) => {
+        old.forEach((p) => URL.revokeObjectURL(p.url));
+        return [];
+      });
       return;
     }
     if (files.length > MAX_FILES) {
@@ -45,12 +49,58 @@ export default function AttachmentPicker() {
     });
   }
 
+  function addFiles(newFiles: File[]) {
+    const input = inputRef.current;
+    if (!input) return;
+    const dt = new DataTransfer();
+    if (input.files) {
+      for (let i = 0; i < input.files.length; i++) {
+        dt.items.add(input.files[i]);
+      }
+    }
+    for (const f of newFiles) dt.items.add(f);
+    input.files = dt.files;
+    refreshFromInput(input.files);
+  }
+
   function clearAll() {
     if (inputRef.current) inputRef.current.value = "";
     previews.forEach((p) => URL.revokeObjectURL(p.url));
     setPreviews([]);
     setError(null);
   }
+
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      if (!e.clipboardData) return;
+      const imageItems = Array.from(e.clipboardData.items).filter(
+        (i) => i.kind === "file" && i.type.startsWith("image/")
+      );
+      if (imageItems.length === 0) return;
+      e.preventDefault();
+      const files: File[] = [];
+      for (const item of imageItems) {
+        const blob = item.getAsFile();
+        if (!blob) continue;
+        const ext = (blob.type.split("/")[1] || "png").toLowerCase();
+        const name =
+          blob.name && blob.name.length > 0
+            ? blob.name
+            : `pasted-${Date.now()}-${files.length + 1}.${ext}`;
+        files.push(new File([blob], name, { type: blob.type }));
+      }
+      if (files.length === 0) return;
+      addFiles(files);
+      setPasteHint(
+        files.length === 1
+          ? "Pasted 1 image."
+          : `Pasted ${files.length} images.`
+      );
+      window.setTimeout(() => setPasteHint(null), 2500);
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
 
   return (
     <div>
@@ -80,8 +130,14 @@ export default function AttachmentPicker() {
           />
         </svg>
         <span className="mt-2 text-sm text-slate-700">
-          <span className="font-medium text-teal-700">Click to choose</span> or
-          drag images here
+          <span className="font-medium text-teal-700">Click to choose</span>,
+          drag images here, or paste with{" "}
+          <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
+            Ctrl+V
+          </kbd>
+        </span>
+        <span className="mt-1 text-[11px] text-slate-500">
+          Tip: after using Snipping Tool, just press Ctrl+V on this page.
         </span>
         <input
           ref={inputRef}
@@ -95,6 +151,9 @@ export default function AttachmentPicker() {
         />
       </label>
 
+      {pasteHint && (
+        <p className="mt-2 text-sm text-teal-700">{pasteHint}</p>
+      )}
       {error && (
         <p className="mt-2 text-sm text-red-700">{error}</p>
       )}
