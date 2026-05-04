@@ -43,10 +43,10 @@ docker run --name teledoc-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postg
 # DATABASE_URL="postgresql://postgres:postgres@localhost:5432/teledoc?schema=public"
 ```
 
-### 3. Apply migrations
+### 3. Sync the database schema
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma db push
 ```
 
 ### 4. Run the dev server
@@ -63,8 +63,8 @@ Open [http://localhost:3000](http://localhost:3000).
 2. Go to [vercel.com](https://vercel.com), **New Project → Import** the repo.
 3. In the Vercel project, open **Storage → Create Database → Neon Postgres**
    and attach it. Vercel will inject `DATABASE_URL` automatically.
-4. Click **Deploy**. The build runs `prisma migrate deploy` automatically, so
-   the database schema will be created on first deploy.
+4. Click **Deploy**. The build runs `prisma db push` automatically, so the
+   database schema will be created on first deploy.
 
 That's it — the site will be live at `https://<your-project>.vercel.app`.
 
