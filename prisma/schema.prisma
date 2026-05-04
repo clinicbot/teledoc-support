@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  SUGGESTION
+  NOT_URGENT
+  VERY_URGENT
+}
+
+enum Status {
+  NEW
+  ACKNOWLEDGED
+  INVESTIGATING
+  PLANNED
+  COMPLETED
+}
+
+model Ticket {
+  id                   Int       @id @default(autoincrement())
+  shortDescription     String
+  detailedDescription  String
+  doctorName           String
+  doctorEmail          String?
+  doctorPhone          String?
+  priority             Priority  @default(NOT_URGENT)
+  status               Status    @default(NEW)
+  supportNotes         String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
