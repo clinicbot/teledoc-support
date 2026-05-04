@@ -100,9 +100,21 @@ export async function createTicket(formData: FormData) {
 }
 
 export async function updateTicket(id: number, formData: FormData) {
+  const shortDescription = trimOrEmpty(formData.get("shortDescription"));
+  const detailedDescription = trimOrEmpty(formData.get("detailedDescription"));
+  const doctorName = trimOrEmpty(formData.get("doctorName"));
+  const doctorEmail = trimOrNull(formData.get("doctorEmail"));
+  const doctorPhone = trimOrNull(formData.get("doctorPhone"));
+  const priorityRaw = trimOrEmpty(formData.get("priority"));
   const statusRaw = trimOrEmpty(formData.get("status"));
   const supportNotes = trimOrNull(formData.get("supportNotes"));
 
+  if (!shortDescription || !detailedDescription || !doctorName) {
+    throw new Error("Missing required fields.");
+  }
+  if (!PRIORITY_OPTIONS.includes(priorityRaw as Priority)) {
+    throw new Error("Invalid priority.");
+  }
   if (!STATUS_OPTIONS.includes(statusRaw as Status)) {
     throw new Error("Invalid status.");
   }
@@ -110,6 +122,12 @@ export async function updateTicket(id: number, formData: FormData) {
   await prisma.ticket.update({
     where: { id },
     data: {
+      shortDescription,
+      detailedDescription,
+      doctorName,
+      doctorEmail,
+      doctorPhone,
+      priority: priorityRaw as Priority,
       status: statusRaw as Status,
       supportNotes,
     },
@@ -118,4 +136,10 @@ export async function updateTicket(id: number, formData: FormData) {
   revalidatePath("/support");
   revalidatePath(`/support/${id}`);
   revalidatePath(`/ticket/${id}`);
+}
+
+export async function deleteTicket(id: number) {
+  await prisma.ticket.delete({ where: { id } });
+  revalidatePath("/support");
+  redirect("/support");
 }
