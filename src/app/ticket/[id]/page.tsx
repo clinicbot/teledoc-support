@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { AttachmentGallery } from "@/components/AttachmentGallery";
 import {
   PRIORITY_BADGE,
   PRIORITY_LABELS,
@@ -21,6 +22,12 @@ export default async function TicketViewPage({
 
   const ticket = await prisma.ticket.findUnique({
     where: { id: ticketId },
+    include: {
+      attachments: {
+        select: { id: true, filename: true },
+        orderBy: { id: "asc" },
+      },
+    },
   });
   if (!ticket) notFound();
 
@@ -89,6 +96,8 @@ export default async function TicketViewPage({
             {ticket.detailedDescription}
           </p>
         </div>
+
+        <AttachmentGallery attachments={ticket.attachments} />
 
         {ticket.supportNotes && (
           <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">

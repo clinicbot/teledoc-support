@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createTicket } from "@/lib/actions";
 import { PRIORITY_LABELS, PRIORITY_OPTIONS } from "@/lib/labels";
+import AttachmentPicker from "./AttachmentPicker";
 
 export default function NewTicketPage() {
   return (
@@ -83,6 +84,8 @@ export default function NewTicketPage() {
             ))}
           </div>
         </div>
+
+        <AttachmentPicker />
 
         <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-4">
           <legend className="px-2 text-sm font-medium text-slate-700">

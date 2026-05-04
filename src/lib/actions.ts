@@ -6,6 +6,17 @@ import { Priority, Status } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/labels";
 
+const MAX_ATTACHMENTS = 4;
+const MAX_ATTACHMENT_SIZE = 1_000_000;
+const ALLOWED_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
 function trimOrEmpty(v: FormDataEntryValue | null): string {
   return typeof v === "string" ? v.trim() : "";
 }
@@ -13,6 +24,44 @@ function trimOrEmpty(v: FormDataEntryValue | null): string {
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = trimOrEmpty(v);
   return s.length === 0 ? null : s;
+}
+
+function toArrayBuffer(buf: ArrayBufferLike): ArrayBuffer {
+  if (buf instanceof ArrayBuffer) return buf;
+  const copy = new ArrayBuffer(buf.byteLength);
+  new Uint8Array(copy).set(new Uint8Array(buf));
+  return copy;
+}
+
+async function readAttachments(formData: FormData) {
+  const raw = formData.getAll("attachments");
+  const files = raw.filter(
+    (f): f is File => f instanceof File && f.size > 0
+  );
+  if (files.length > MAX_ATTACHMENTS) {
+    throw new Error(`You can attach at most ${MAX_ATTACHMENTS} images.`);
+  }
+  const attachments = [];
+  for (const file of files) {
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      throw new Error(
+        `"${file.name}" is too large (max 1 MB per image).`
+      );
+    }
+    if (!ALLOWED_MIME.has(file.type)) {
+      throw new Error(
+        `"${file.name}" is not a supported image type. Use PNG, JPEG, GIF, WEBP, or HEIC.`
+      );
+    }
+    const data = new Uint8Array(toArrayBuffer(await file.arrayBuffer()));
+    attachments.push({
+      filename: file.name.slice(0, 200),
+      mimeType: file.type,
+      size: file.size,
+      data,
+    });
+  }
+  return attachments;
 }
 
 export async function createTicket(formData: FormData) {
@@ -30,6 +79,8 @@ export async function createTicket(formData: FormData) {
     throw new Error("Invalid priority.");
   }
 
+  const attachments = await readAttachments(formData);
+
   const ticket = await prisma.ticket.create({
     data: {
       shortDescription,
@@ -38,6 +89,9 @@ export async function createTicket(formData: FormData) {
       doctorEmail,
       doctorPhone,
       priority: priorityRaw as Priority,
+      ...(attachments.length > 0
+        ? { attachments: { create: attachments } }
+        : {}),
     },
   });
 
